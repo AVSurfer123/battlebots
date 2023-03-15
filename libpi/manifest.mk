@@ -10,26 +10,14 @@ TTYUSB =
 GREP_STR := 'HASH:\|ERROR:\|PANIC:\|PASS:\|TEST:'
 
 # set if you want the code to automatically run after building.
-RUN = 1
+RUN = 0
 # set if you want the code to automatically check after building.
 #CHECK = 0
-
-ifdef CS140E_STAFF
-ifndef CS140_ACT_AS_STUDENT
-STAFF_OBJS += staff-objs/kmalloc.o
-#STAFF_OBJS += staff-objs/sw-uart.o
-#STAFF_OBJS += staff-objs/interrupts-asm.o      
-# STAFF_OBJS += staff-objs/interrupts-vec-asm.o 
-#STAFF_OBJS += staff-objs/rpi-thread.o 
-#STAFF_OBJS += staff-objs/rpi-thread-asm.o 
-#STAFF_OBJS += staff-objs/new-spi.o
-endif
-endif
 
 DEPS += ./src
 
 
-include $(shell pwd)/mk/Makefile.lib.template
+include $(LPP)/mk/Makefile.lib.template
 
 all:: $(START)
 

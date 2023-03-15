@@ -1,8 +1,8 @@
 # setup useful variables that can be used by make.
 
 # this must be defined in your shell's startup file.
-ifndef CS140E_2023_PATH
-$(error CS140E_2023_PATH is not set: this should contain the absolute path to where this directory is.  Define it in your shell's initialiation.  For example, .tcshrc for tcsh or .bashrc for bash)
+ifndef LPP
+$(error LPP is not set: this should contain the absolute path to where libpi is)
 endif
 
 # OPT_LEVEL = -O3
@@ -13,8 +13,8 @@ AS  = $(ARM)-as
 AR = $(ARM)-ar
 OD  = $(ARM)-objdump
 OCP = $(ARM)-objcopy
-CS140E_2023_LIBPI_PATH = $(CS140E_2023_PATH)/battlebots/libpi
-LPP = $(CS140E_2023_LIBPI_PATH)
+# CS140E_2023_LIBPI_PATH = $(CS140E_2023_PATH)/libpi
+# LPP = $(CS140E_2023_LIBPI_PATH)
 LPI ?= $(LPP)/libpi.a
 
 # let the client override these.

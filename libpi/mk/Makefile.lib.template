@@ -68,7 +68,7 @@ VPATH := $(sort $(dir $(ALL_SRC)))
 
 .SUFFIXES: .run
 
-DEFS = $(CS140E_2023_PATH)/battlebots/libpi/defs.mk
+include $(LPP)/defs.mk
 include $(DEFS)
 # CFLAGS += -Wno-unused-function -Wno-unused-variable  $(EXTRA_CFLAGS)
 CFLAGS += $(EXTRA_CFLAGS)
@@ -133,7 +133,7 @@ endif
 # put-your-src-here.mk hack.
 $(LIB): $(ALL_OBJS) $(DEPS) $(LINK_DEPS)
 	@rm -f $@
-	$(AR) crf $@ $(ALL_OBJS)
+	$(AR) -T crf $@ $(ALL_OBJS) $(LIBS)
 	$(OD) -D $@ > $@.list
 
 %.elf: %.o $(LIBS) $(DEPS) $(START)  $(LINK_DEPS)

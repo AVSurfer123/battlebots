@@ -13,5 +13,6 @@ _interrupt_table:
     b unhandled_swi
     b unhandled_prefetch_abort
     b unhandled_data_abort
+    b unhandled_reset // unused
     b unhandled_interrupt
     b unhandled_fiq

@@ -1,15 +1,16 @@
+LPP := ../libpi
 
 # all the tests
-# PROGS := $(wildcard tests/[0123]-*.c)
 PROGS := 1-blink.c
-PROGS := 3-one-way-ack-Nbytes.c
 PROGS := 1-rising-edge.c
+PROGS := 3-one-way-ack-Nbytes.c
+PROGS := $(wildcard [23]-*.c)
+
 
 COMMON_SRC := test-interrupts.c
 
 STAFF_OBJS := ../libpi/staff-objs/new-spi.o
 
-LIBS = ./libgcc.a
 
 # uncomment if you want it to automatically run.
 RUN=0
