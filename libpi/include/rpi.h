@@ -59,6 +59,8 @@ void uart_disable(void);
 
 // get one byte from the uart
 int uart_get8(void);
+// get 4 bytes from uart
+int uart_get32(void);
 // put one byte on the uart:
 // returns < 0 on error.
 int uart_put8(uint8_t c);

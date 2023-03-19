@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <linux/joystick.h>
 
+#define NUM_AXES 6
 
 /**
  * Reads a joystick event from the joystick device.
@@ -78,11 +79,11 @@ struct axis_state {
  *
  * Returns the axis that the event indicated.
  */
-size_t get_axis_state(struct js_event *event, struct axis_state axes[3])
+size_t get_axis_state(struct js_event *event, struct axis_state axes[NUM_AXES])
 {
     size_t axis = event->number / 2;
 
-    if (axis < 3)
+    if (axis < NUM_AXES)
     {
         if (event->number % 2 == 0)
             axes[axis].x = event->value;
@@ -93,12 +94,13 @@ size_t get_axis_state(struct js_event *event, struct axis_state axes[3])
     return axis;
 }
 
+
 int main(int argc, char *argv[])
 {
     const char *device;
     int js;
     struct js_event event;
-    struct axis_state axes[3] = {0};
+    struct axis_state axes[NUM_AXES] = {0};
     size_t axis;
 
     if (argc > 1)
@@ -111,9 +113,12 @@ int main(int argc, char *argv[])
     if (js == -1)
         perror("Could not open joystick");
 
+    printf("Joystick info for %s: %lu axes and %lu buttons\n", device, get_axis_count(js), get_button_count(js));
+
     /* This loop will exit if the controller is unplugged. */
     while (read_event(js, &event) == 0)
     {
+        printf("reading from joystick: %d\n", event.type);
         switch (event.type)
         {
             case JS_EVENT_BUTTON:
@@ -121,8 +126,12 @@ int main(int argc, char *argv[])
                 break;
             case JS_EVENT_AXIS:
                 axis = get_axis_state(&event, axes);
-                if (axis < 3)
-                    printf("Axis %zu at (%6d, %6d)\n", axis, axes[axis].x, axes[axis].y);
+                if (axis < NUM_AXES) {
+                    printf("Axis %zu at (%6d, %6d)\n", axis, axes[axis].x, axes[axis].y); 
+                }
+                else {
+                    printf("Got axis for number %lu\n", axis);
+                }
                 break;
             default:
                 /* Ignore init events. */
