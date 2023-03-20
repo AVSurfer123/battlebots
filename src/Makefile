@@ -5,10 +5,10 @@ PROGS := 1-blink.c
 PROGS := 1-rising-edge.c
 PROGS := 3-one-way-ack-Nbytes.c
 PROGS := $(wildcard [23]-*.c)
-PROGS := read_joystick_from_user.c robot_main.c
+PROGS := read_joystick_from_user.c robot_main.c pwm-test.c
 
 
-COMMON_SRC := test-interrupts.c
+COMMON_SRC := test-interrupts.c pwm.c
 
 STAFF_OBJS := ../libpi/staff-objs/new-spi.o
 
