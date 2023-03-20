@@ -142,12 +142,3 @@ int uart_tx_is_empty(void) {
 void uart_flush_tx(void) {
     while(!uart_tx_is_empty());
 }
-
-int uart_get32() {
-    int u;
-    u  = uart_get8();
-    u |= uart_get8() << 8;
-    u |= uart_get8() << 16;
-    u |= uart_get8() << 24;
-    return u;
-}

@@ -187,6 +187,11 @@ int nrf_send_ack(nrf_t *nic, uint32_t txaddr, const void *msg, unsigned nbytes);
 // using NRF <nic>
 int nrf_send_noack(nrf_t *nic, uint32_t txaddr, const void *msg, unsigned nbytes);
 
+// Gets 32 bits of data. Returns 1 on success, 0 on failure. Waits for 1 ms
+int net_get32(nrf_t *nic, uint32_t *out);
+// Puts 32 bits of data to txaddr. Panics on error
+void net_put32(nrf_t *nic, uint32_t txaddr, uint32_t x);
+
 /********************************************************************
  * configuration support.
  *

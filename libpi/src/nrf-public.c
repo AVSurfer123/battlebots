@@ -85,3 +85,18 @@ int nrf_send_noack(nrf_t *nic, uint32_t txaddr,
     return nrf_tx_send_noack(nic, txaddr, msg, nbytes);
 }
 
+
+int net_get32(nrf_t *nic, uint32_t *out) {
+    int ret = nrf_read_exact_timeout(nic, out, 4, 1000);
+    if(ret != 4) {
+        debug("receive failed: ret=%d\n", ret);
+        return 0;
+    }
+    return 1;
+}
+
+void net_put32(nrf_t *nic, uint32_t txaddr, uint32_t x) {
+    int ret = nrf_send_ack(nic, txaddr, &x, 4);
+    if(ret != 4)
+        panic("ret=%d, expected 4\n");
+}

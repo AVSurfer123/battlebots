@@ -92,8 +92,8 @@ char *find_ttyusb_last(void) {
         if (ret == -1) {
             panic("Error in stat\n");
         }
-        if (file_info.st_mtime > last_time) {
-            last_time = file_info.st_mtime;
+        if (file_info.st_ctime > last_time) {
+            last_time = file_info.st_ctime;
             last_usb = buf;
         }
         else {
@@ -132,8 +132,8 @@ char *find_ttyusb_first(void) {
         if (ret == -1) {
             panic("Error in stat\n");
         }
-        if (file_info.st_mtime < first_time) {
-            first_time = file_info.st_mtime;
+        if (file_info.st_ctime < first_time) {
+            first_time = file_info.st_ctime;
             first_usb = buf;
         }
         else {

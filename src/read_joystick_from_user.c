@@ -6,6 +6,8 @@
  * are *not* expecting any data.
  */
 #include "uart_helpers.h"
+#include "nrf.h"
+#include "nrf-test.h"
 
 // wait until:
 //   (1) there is data (uart_has_data() == 1): return 1.
@@ -30,12 +32,12 @@ static unsigned has_data_timeout(unsigned timeout) {
 #define JS_EVENT_AXIS		0x02	/* joystick moved */
 #define JS_EVENT_INIT		0x80	/* initial state of device */
 
-struct js_event {
+typedef struct {
 	uint32_t time;	/* event timestamp in milliseconds */
 	int16_t value;	/* value */
 	uint8_t type;	/* event type */
 	uint8_t number;	/* axis/button number */
-};
+} js_event;
 
 /**
  * Current state of an axis.
@@ -53,7 +55,7 @@ struct axis_state {
  *
  * Returns the axis that the event indicated.
  */
-size_t get_axis_state(struct js_event *event, struct axis_state* axes)
+size_t get_axis_state(js_event* event, struct axis_state* axes)
 {
     size_t axis = event->number / 2;
 
@@ -65,11 +67,13 @@ size_t get_axis_state(struct js_event *event, struct axis_state* axes)
     return axis;
 }
 
+nrf_t* server;
+
 
 void connect_to_joystick() {
     int MAGIC = 0xbadaba;
     while (1) {
-        if (uart_get32() != MAGIC) {
+        if (boot_get32() != MAGIC) {
             uart_get8();
         }
         else {
@@ -79,21 +83,20 @@ void connect_to_joystick() {
         }
     }
     int i = 0;
-    while (uart_get32() == MAGIC) {
+    while (boot_get32() == MAGIC) {
         i++;
     }
     printk("Cleared %d extra MAGIC in the buffer\n", i);
-    uart_get32(); // Read another 32 bits so we finish reading the first joystick struct
+    boot_get32(); // Read another 32 bits so we finish reading the first joystick struct
 }
 
 void read_joystick() {
     struct axis_state axes[6];
+    memset(axes, 0, sizeof(struct axis_state) * 6);
 
-    // If we don't receive data for 1 second, assume connection is closed
-    while (has_data_timeout(1000000)) {
-        printk("Got data!\n");
-
-        struct js_event event;
+    // If we don't receive data for 10 seconds, assume connection is closed
+    while (has_data_timeout(10000000)) {
+        js_event event;
         for (int i = 0; i < sizeof(event); i++) {
             uint8_t* ptr = (uint8_t*) &event;
             ptr[i] = uart_get8();
@@ -115,10 +118,17 @@ void read_joystick() {
                 /* Ignore init events. */
                 break;
         }
+
+        // int ret = nrf_send_ack(server, client_addr, &event, sizeof(js_event));
+        // if (ret != sizeof(js_event)) {
+        //     printk("nrf send error: only sent %d bytes of %d\n", ret, sizeof(js_event));
+        // }
     }
 }
 
 void notmain(void) {
+    // server = server_mk_ack(server_addr, sizeof(js_event));
+
     while (1) {
         connect_to_joystick();
         read_joystick();
