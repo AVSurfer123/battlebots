@@ -71,7 +71,8 @@ void* send_joystick(void* arg) {
             uint8_t* ptr = (uint8_t*) &event;
             put_uint8(pi_fd, ptr[i]);
         }
-        usleep(10000);
+        // Write at 50 Hz
+        usleep(20000);
     }
     printf("Joystick disconnected! Ending process\n");
     return NULL;
@@ -91,6 +92,9 @@ void* read_pi_output(void* arg) {
             // if you keep getting "" "" "" it's b/c of the GET_CODE message from bootloader
             remove_nonprint(buf, n);
             printf("%s", buf);
+            if(pi_done(buf)) {
+                clean_exit("\npi exited.  cleaning up\n");
+            }
         }
     }
 }

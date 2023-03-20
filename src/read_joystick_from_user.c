@@ -8,6 +8,7 @@
 #include "uart_helpers.h"
 #include "nrf.h"
 #include "nrf-test.h"
+#include "joy_def.h"
 
 // wait until:
 //   (1) there is data (uart_has_data() == 1): return 1.
@@ -28,47 +29,7 @@ static unsigned has_data_timeout(unsigned timeout) {
     return 0;
 }
 
-#define JS_EVENT_BUTTON		0x01	/* button pressed/released */
-#define JS_EVENT_AXIS		0x02	/* joystick moved */
-#define JS_EVENT_INIT		0x80	/* initial state of device */
-
-typedef struct {
-	uint32_t time;	/* event timestamp in milliseconds */
-	int16_t value;	/* value */
-	uint8_t type;	/* event type */
-	uint8_t number;	/* axis/button number */
-} js_event;
-
-/**
- * Current state of an axis.
- */
-struct axis_state {
-    int16_t x, y;
-};
-
-/**
- * Keeps track of the current axis state.
- *
- * NOTE: This function assumes that axes are numbered starting from 0, and that
- * the X axis is an even number, and the Y axis is an odd number. However, this
- * is usually a safe assumption.
- *
- * Returns the axis that the event indicated.
- */
-size_t get_axis_state(js_event* event, struct axis_state* axes)
-{
-    size_t axis = event->number / 2;
-
-    if (event->number % 2 == 0)
-        axes[axis].x = event->value;
-    else
-        axes[axis].y = event->value;
-
-    return axis;
-}
-
 nrf_t* server;
-
 
 void connect_to_joystick() {
     int MAGIC = 0xbadaba;
@@ -91,8 +52,8 @@ void connect_to_joystick() {
 }
 
 void read_joystick() {
-    struct axis_state axes[6];
-    memset(axes, 0, sizeof(struct axis_state) * 6);
+    axis_state axes[6];
+    memset(axes, 0, sizeof(axis_state) * 6);
 
     // If we don't receive data for 10 seconds, assume connection is closed
     while (has_data_timeout(10000000)) {
@@ -119,18 +80,18 @@ void read_joystick() {
                 break;
         }
 
-        // int ret = nrf_send_ack(server, client_addr, &event, sizeof(js_event));
-        // if (ret != sizeof(js_event)) {
-        //     printk("nrf send error: only sent %d bytes of %d\n", ret, sizeof(js_event));
-        // }
+        if (event.type == JS_EVENT_BUTTON || event.type == JS_EVENT_AXIS) {
+            int ret = nrf_send_noack(server, client_addr, &event, sizeof(js_event));
+            if (ret != sizeof(js_event)) {
+                printk("nrf send error: only sent %d bytes of %d\n", ret, sizeof(js_event));
+            }
+        }
     }
 }
 
 void notmain(void) {
-    // server = server_mk_ack(server_addr, sizeof(js_event));
+    server = server_mk_noack(server_addr, sizeof(js_event));
 
-    while (1) {
-        connect_to_joystick();
-        read_joystick();
-    }
+    connect_to_joystick();
+    read_joystick();
 }
