@@ -3,7 +3,7 @@
 
 volatile int n_interrupt;
 
-static interrupt_fn_t interrupt_fn;
+interrupt_fn_t interrupt_fn;
 
 void interrupt_vector(unsigned pc) {
     dev_barrier();

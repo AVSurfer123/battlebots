@@ -19,3 +19,8 @@ void int_vec_init(void *v) {
 
     vector_base_set(v);
 }
+
+void int_init() {
+    extern uint32_t _interrupt_table[];
+    int_vec_init(_interrupt_table);
+}

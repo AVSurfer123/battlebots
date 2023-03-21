@@ -8,6 +8,7 @@ uint32_t timer_get_usec_raw(void) {
 // in usec.  the lower 32-bits of the usec 
 // counter: if you investigate in the broadcom 
 // doc can see how to get the high 32-bits too.
+// Will overflow after ~33 minutes
 uint32_t timer_get_usec(void) {
     dev_barrier();
     uint32_t u = timer_get_usec_raw();

@@ -5,7 +5,7 @@ PROGS := 1-blink.c
 PROGS := 1-rising-edge.c
 PROGS := 3-one-way-ack-Nbytes.c
 PROGS := $(wildcard [23]-*.c)
-PROGS := read_joystick_from_user.c robot_main.c pwm-test.c
+PROGS := read_joystick_from_user.c robot_main.c pwm-test.c 1-blink.c
 
 
 COMMON_SRC := test-interrupts.c pwm.c
