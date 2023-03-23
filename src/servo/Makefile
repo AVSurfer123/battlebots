@@ -4,6 +4,8 @@ PROGS := test-servo.c
 
 COMMON_SRC := servo.c
 
-RUN=1
+RUN=0
 
-include $(CS140E_2023_PATH)/libpi/mk/Makefile.template
+LPP = ../../libpi
+
+include ../../libpi/mk/Makefile.template

@@ -20,6 +20,8 @@
 #define RIGHT_ENC_A 20
 #define RIGHT_ENC_B 24
 
+#define SPRAYER 12
+
 nrf_t* client;
 
 axis_state axes[6];
@@ -93,6 +95,7 @@ void drive(int left, int right) {
 uint32_t last_time = 0;
 int left_count = 0;
 int right_count = 0;
+int spray_count = 0;
 
 int timer_interrupt(uint32_t pc) {
     dev_barrier();
@@ -138,6 +141,16 @@ int timer_interrupt(uint32_t pc) {
     else {
         gpio_set_off(RIGHT_ENABLE);
     }
+
+    // spray_count += sprayer_angle;
+    // if (right_count >= RESOLUTION) {
+    //     right_count -= RESOLUTION;
+    //     gpio_set_on(SPRAYER);
+    // }
+    // else {
+    //     gpio_set_off(SPRAYER);
+    // }
+
     dev_barrier();
     
     return 1;
@@ -152,9 +165,10 @@ void notmain() {
     gpio_set_output(RIGHT_ENABLE);
     gpio_set_output(RIGHT_A);
     gpio_set_output(RIGHT_B);
+    gpio_set_output(SPRAYER);
 
     int_init();
-    // From experimental testing, each cycle in this init function corresponds to 1 microsecond
+    // From experimental testing, each cycle in this init function corresponds to 1 microsecond delay
     // If we want 500 Hz PWM with 100 resolution, naive implementation gives us 50,000 Hz clock which means 20 us delay between interrupts
     printk("Initializing timer to %u us delay\n", TIMER_NCYCLES);
     timer_interrupt_init(TIMER_NCYCLES);
@@ -167,6 +181,8 @@ void notmain() {
     int total_wait = 0;
 
     while (1) {
+
+
         int ret = nrf_read_exact_noblk(client, &event, sizeof(js_event));
         if (ret != sizeof(js_event)) {
             delay_ms(1);
