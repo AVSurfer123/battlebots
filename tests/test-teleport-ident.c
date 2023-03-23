@@ -20,11 +20,12 @@
 static unsigned thread_count, thread_sum;
 
 static int finished = 0;
+#define NBYTES 32
 
 static struct lock test_lock;
 // static nrf_t *s = NULL;
 // static nrf_t *c = NULL;
-enum { ntrial = 1000, timeout_usec = 10000000, nbytes = 16 };
+enum { ntrial = 1000, timeout_usec = 10000000, nbytes = NBYTES };
 enum { tina_addr = 0xe5e5e5, luca_addr = 0xd5d5d5 };
 
 static void clone_code(void *arg) {
@@ -65,8 +66,7 @@ static void receive_thread(void *arg) {
   //       break;
   // }
 
-  assert(sizeof(uint32_t) * 4 == nbytes);
-  uint32_t stack_offset[4];
+  uint32_t stack_offset[NBYTES / sizeof (uint32_t)];
   int ret = nrf_read_exact_timeout(s, stack_offset, nbytes, timeout_usec);
   t->saved_sp = t->stack + stack_offset[0];
 
@@ -165,7 +165,7 @@ static void send_thread(void *arg) {
   //   output("sending guineapig[%d-%d]: %d\n", i * 100, (i + 1) * 100, fast_hash(guineapig + i * 100, 100));
   // }
 
-  uint32_t stack_offset[4];
+  uint32_t stack_offset[NBYTES / sizeof (uint32_t)];
   stack_offset[0] = (char*)guineapig->saved_sp - (char*)guineapig->stack;
   output("Sending stack offset: %d\n", stack_offset[0]);
   int ret = nrf_send_noack(c, luca_addr, stack_offset, nbytes);
