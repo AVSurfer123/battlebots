@@ -8,6 +8,9 @@
 # Unignore all dirs
 !*/
 
+# For Luca's local backup thingy
+*.history
+
 ### Above combination will ignore all files without extension ###
 
 *.bin
