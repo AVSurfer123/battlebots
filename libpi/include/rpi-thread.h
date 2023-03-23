@@ -2,6 +2,8 @@
 #ifndef __RPI_THREAD_H__
 #define __RPI_THREAD_H__
 
+#include "list.h"
+
 /*
  * trivial thread descriptor:
  *   - reg_save_area: space for all the registers (including
@@ -31,8 +33,20 @@
  *    stack.  
  */
 
+// you should define these; also rename to something better.
+#define REG_SP_OFF 36/4
+#define REG_LR_OFF 40/4
 
 #define THREAD_MAXSTACK (1024 * 8/4)
+
+enum thread_state {
+    RUNNING = 0,
+    READY = 1,
+    BLOCKED = 2,
+    STOPPED = 3,    // Unused
+    UNSTARTED = 4,  // Unused
+};
+
 typedef struct rpi_thread {
     uint32_t *saved_sp;
 
@@ -46,10 +60,13 @@ typedef struct rpi_thread {
     const char *annot;
     // threads waiting on the current one to exit.
     // struct rpi_thread *waiters;
-    uint32_t extra[16];
 
 	uint32_t stack[THREAD_MAXSTACK];
+    uint32_t finish_time_us;
+    enum thread_state state;
+    struct list_elem elem;
 } rpi_thread_t;
+
 _Static_assert(offsetof(rpi_thread_t, stack) % 8 == 0, 
                             "must be 8 byte aligned");
 
@@ -59,11 +76,26 @@ _Static_assert(offsetof(rpi_thread_t, saved_sp) == 0,
 
 // main routines.
 
-
+typedef enum {
+  SCHEDULE_BASIC = 0,
+  SCHEDULE_RTOS = 1,
+} schedule_type;
 
 // starts the thread system: only returns when there are
 // no more runnable threads. 
 void rpi_thread_start(void);
+
+// starts the thread system after enabling preemptive threading
+void rpi_thread_start_preemptive(schedule_type schedule_rule);
+
+// enables/disables preemptive threading
+void rpi_set_preemption(int);
+
+void unblock_threads(void);
+void block_threads(void);
+  
+// get the pointer to the current thread.
+rpi_thread_t *rpi_cur_thread(void);
 
 // get the pointer to the current thread.  
 rpi_thread_t *rpi_cur_thread(void);
@@ -73,6 +105,7 @@ rpi_thread_t *rpi_cur_thread(void);
 typedef void (*rpi_code_t)(void *);
 
 rpi_thread_t *rpi_fork(rpi_code_t code, void *arg);
+rpi_thread_t *rpi_fork_rt(rpi_code_t code, void *arg, unsigned deadline_us);
 
 // exit current thread: switch to the next runnable
 // thread, or exit the threads package.
@@ -93,8 +126,12 @@ void rpi_yield(void);
 //  reutrn to the caller (which will now be different!)
 void rpi_cswitch(uint32_t **old_sp_save, const uint32_t *new_sp);
 
+void rpi_cswitch_preemptive(uint32_t **old_sp_save, const uint32_t *new_sp);
+
+void push_to_blocked_list(rpi_thread_t *thread);
+
 // returns the stack pointer (used for checking).
-uint32_t *rpi_get_sp(void);
+const uint8_t *rpi_get_sp(void);
 
 // check that: the current thread's sp is within its stack.
 void rpi_stack_check(void);
