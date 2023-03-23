@@ -165,7 +165,7 @@ void notmain() {
     gpio_set_output(RIGHT_ENABLE);
     gpio_set_output(RIGHT_A);
     gpio_set_output(RIGHT_B);
-    gpio_set_output(SPRAYER);
+    // gpio_set_output(SPRAYER);
 
     int_init();
     // From experimental testing, each cycle in this init function corresponds to 1 microsecond delay
@@ -177,15 +177,13 @@ void notmain() {
     cpsr_int_enable();
 
     js_event event;
-    size_t axis;
+    // size_t axis;
     int total_wait = 0;
 
     while (1) {
-
-
         int ret = nrf_read_exact_noblk(client, &event, sizeof(js_event));
         if (ret != sizeof(js_event)) {
-            delay_ms(1);
+            // delay_ms(1);
             total_wait++;
         }
         else {
@@ -193,28 +191,29 @@ void notmain() {
             switch (event.type)
             {
                 case JS_EVENT_BUTTON:
-                    printk("Button %u %s\n", event.number, event.value ? "pressed" : "released");
+                    // printk("Button %u %s\n", event.number, event.value ? "pressed" : "released");
                     break;
                 case JS_EVENT_AXIS:
-                    axis = get_axis_state(&event, axes);
-                    printk("Axis %u at (%d, %d)\n", axis, axes[axis].x, axes[axis].y); 
+                    get_axis_state(&event, axes);
+                    // printk("Axis %u at (%d, %d)\n", axis, axes[axis].x, axes[axis].y); 
                     break;
                 default:
                     /* Ignore init events. */
-                    printk("Read type %d\n", event.type);
+                    // printk("Read type %d\n", event.type);
                     break;
             }
         }
-        if (total_wait > 4000) {
+        if (total_wait > 10000) {
             clean_reboot();
         }
 
-        int forward = axes[0].x;
-        int turn = axes[0].y;
-        // drive(forward + turn, forward - turn);
+        int forward = -axes[0].y;
+        int turn = axes[0].x;
+        drive(forward + turn, forward - turn);
+        printk("Drive commands: forward %d turn %d\n", forward, turn);
 
-        // drive(20000, 20000);
-        drive(total_wait * 5 + 5000, total_wait * 5 + 5000);
+        // drive(40000, 40000);
+        // drive(total_wait * 5 + 5000, total_wait * 5 + 5000);
     }
     drive(0, 0);
 }

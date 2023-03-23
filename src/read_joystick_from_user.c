@@ -51,9 +51,12 @@ void connect_to_joystick() {
     boot_get32(); // Read another 32 bits so we finish reading the first joystick struct
 }
 
+int led_val = 0;
+
 void read_joystick() {
     axis_state axes[6];
     memset(axes, 0, sizeof(axis_state) * 6);
+    gpio_set_output(27);
 
     // If we don't receive data for 10 seconds, assume connection is closed
     while (has_data_timeout(10000000)) {
@@ -63,9 +66,7 @@ void read_joystick() {
             ptr[i] = uart_get8();
         }
         size_t axis;
-
         printk("Read type %d\n", event.type);
-
         switch (event.type)
         {
             case JS_EVENT_BUTTON:
@@ -80,11 +81,19 @@ void read_joystick() {
                 break;
         }
 
+        if (event.type == JS_EVENT_BUTTON && event.number == 1 && event.value) {
+            led_val = !led_val;
+            gpio_write(27, led_val);
+        }
+
         if (event.type == JS_EVENT_BUTTON || event.type == JS_EVENT_AXIS) {
             int ret = nrf_send_noack(server, client_addr, &event, sizeof(js_event));
             if (ret != sizeof(js_event)) {
                 printk("nrf send error: only sent %d bytes of %d\n", ret, sizeof(js_event));
             }
+        }
+        else {
+            printk("Read type %d\n", event.type);
         }
     }
 }

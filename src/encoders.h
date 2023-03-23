@@ -5,8 +5,11 @@ typedef struct
 {
     int32_t position;
     int32_t velocity;
+    int32_t counts;
+    int32_t encState;
+    int32_t lastTime;
 } MotorData;
 
-MotorData get_encoder_velocity(int A, int B);
+void get_encoder_velocity(MotorData* data, int A, int B);
 
 #endif

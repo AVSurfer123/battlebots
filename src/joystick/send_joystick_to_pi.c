@@ -72,7 +72,7 @@ void* send_joystick(void* arg) {
             put_uint8(pi_fd, ptr[i]);
         }
         // Write at 50 Hz
-        usleep(20000);
+        usleep(10000);
     }
     printf("Joystick disconnected! Ending process\n");
     return NULL;

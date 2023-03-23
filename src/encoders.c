@@ -8,23 +8,17 @@ int8_t enc_table[16] = {
     -1, 0, 0, 1,
     0, 1, -1, 0};
 
-int32_t totalCount;
-int enc_val = 0;
-unsigned lastCycleCount = 0;
-MotorData get_encoder_velocity(int A, int B)
+void get_encoder_velocity(MotorData* data, int A, int B)
 {
     int new_val = A << 1 | B;
     // shift new value to old
-    enc_val = enc_val << 2;
-    enc_val = enc_val | new_val;
+    data->encState = data->encState << 2;
+    data->encState = data->encState | new_val;
 
-    int oldTotalCount = totalCount;
-    totalCount = totalCount + enc_table[enc_val & 0b1111];
-    int deltaCount = totalCount - oldTotalCount;
+    int oldTotalCount = data->position;
+    data->position += enc_table[data->encState & 0b1111];
+    int deltaCount = data->position - oldTotalCount;
 
-    MotorData data;
-    data.position = totalCount;
-    data.velocity = deltaCount / (cycle_cnt_read() - lastCycleCount);
-    lastCycleCount = cycle_cnt_read();
-    return data;
+    data->velocity = deltaCount / (timer_get_usec() - data->lastTime);
+    data->lastTime = timer_get_usec();
 }
