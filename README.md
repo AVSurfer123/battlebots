@@ -3,7 +3,7 @@ Robot firmware code for a fire and water battlebot controlled by a Raspberry Pi 
 
 Final project for Stanford CS 140E
 
-Tina Rogers
+Christina Rogers
 
 Ashwin Vangipuram
 
