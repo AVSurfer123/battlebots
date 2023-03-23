@@ -113,8 +113,8 @@ void pwm_set(uint8_t pin, uint32_t duty_cycle)
 void pwm_init(uint8_t pin, uint32_t duty_cycle)
 {
     if(PRINT) trace("pwm init on %d with duty_cycle=%d\n", pin, duty_cycle);
-    uint32_t resolution = 100; //3000;
-    uint32_t data = 8; // resolution * duty_cycle / 100;
+    uint32_t resolution = 3000;
+    uint32_t data = resolution * duty_cycle / 100;
 
     // initalize pin for PWM
     uint8_t pwm_channel = pwm_gpio(pin, 1);
