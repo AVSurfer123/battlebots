@@ -74,6 +74,7 @@ void unblock_threads(void) {
     if (t->state == BLOCKED) {
         Q_append(&blockq, t);
     } else {
+        // output("Thread %d now runnable\n", t->tid);
         Q_append(&runq, t);
     }
   }
@@ -85,6 +86,7 @@ void block_threads(void) {
     if (t->state != BLOCKED) {
         Q_append(&runq, t);
     } else {
+        // output("Thread %d now blocked\n", t->tid);
         Q_append(&blockq, t);
     }
   }
@@ -114,6 +116,49 @@ rpi_thread_t *rpi_cur_thread(void) {
     return cur_thread;
 }
 
+// implement this assembly routine in <asm-checks.S>
+uint32_t * push_r0_r12_asm(uint32_t *scratch);
+uint32_t * push_r0_r15_asm(uint32_t *scratch);
+
+void print_stupid(void) {
+    printk("stupid\n");
+}
+
+
+// called with:
+//   - <sp_after_push>: value of the <sp> after the push 
+//   - <sp_before_push>: value of the <sp> before the push 
+void check_push_order(void) {
+    uint32_t scratch_mem[64], 
+            // pointer to the middle so doesn't matter if up
+            // or down
+            *p = &scratch_mem[32];
+
+    uint32_t *ret = push_r0_r12_asm(p);
+    // uint32_t *ret = push_r0_r15_asm(p);
+    assert(ret < p);
+    int target = 0;
+    // printk("Vals:\n");
+    // for (int i = 19; i < 32; i++) {
+    //   printk("r%d: %x ", target, scratch_mem[i]);
+    //   target += 1;
+    // }
+    printk("Vals:\n");
+    for (int i = 19; i < 32; i++) {
+    // for (int i = 16; i < 32; i++) {
+    //   if (i == 29) continue;  // skip r13
+      printk("r%d: %x ", target, scratch_mem[i]);
+      target += 1;
+    }
+
+    // check that regs holds the right values.
+    // todo("write the code to check that <ret> holds the expected values.");
+    // todo("see caller in <asm-check.S:push_r4_r12_asm>");
+
+    return;
+
+}
+
 // create a new thread.
 rpi_thread_t *rpi_fork(void (*code)(void *arg), void *arg) {
     rpi_thread_t *t = th_alloc();
@@ -139,6 +184,7 @@ rpi_thread_t *rpi_fork(void (*code)(void *arg), void *arg) {
     t->saved_sp = t->stack + THREAD_MAXSTACK - (LR_OFFSET - R4_OFFSET) - 1;
     t->state = READY;
 
+    // th_trace("Set th=%p fn=%p, arg=%p from code=%p, arg=%p, val=%d\n", t, t->fn, t->arg, code, arg, *(int*)arg);
     th_trace("rpi_fork: tid=%d, code=[%p], arg=[%x], saved_sp=[%p]\n",
             t->tid, code, arg, t->saved_sp);
 
@@ -172,6 +218,7 @@ rpi_thread_t *rpi_fork_rt(void (*code)(void *arg), void *arg, unsigned deadline_
     t->finish_time_us = deadline_us;
     t->state = READY;
 
+    // th_trace("Set th=%p fn=%p, arg=%p from code=%p, arg=%p, val=%d\n", t, t->fn, t->arg, code, arg, *(int*)arg);
     th_trace("rpi_fork: tid=%d, code=[%p], arg=[%x], saved_sp=[%p]\n",
             t->tid, code, arg, t->saved_sp);
 
@@ -196,6 +243,8 @@ void rpi_exit(int exitcode) {
           cur_thread = Q_pop(&runq);
         #endif
         cur_thread->state = RUNNING;
+        // cur_thread = Q_find(&runq, rt_cmp);
+        // t->saved_sp = t->stack + THREAD_MAXSTACK - (LR_OFFSET - R4_OFFSET) - 1;
         rpi_cswitch(&old_thread->saved_sp, cur_thread->saved_sp);
         return;  // This should not get hit
     }
@@ -205,6 +254,11 @@ void rpi_exit(int exitcode) {
     cur_thread = scheduler_thread;
 }
 
+// void push_to_blocked_list(rpi_thread_t *thread) {
+//     demand(thread->state == BLOCKED, thread must be in state BLOCKED);
+//     runq()
+// }
+
 // yield the current thread.
 //   - if the runq is empty, return.
 //   - otherwise: 
@@ -213,24 +267,49 @@ void rpi_exit(int exitcode) {
 //      * context switch to the new thread.
 //        make sure to set cur_thread correctly!
 void rpi_yield(void) {
+    // demand(preemption == 0, yield is not yet compatible with preemption);
+    // if (!Q_empty(&runq)) {
+    //     rpi_thread_t *old_thread = cur_thread;
+    //     old_thread->state = READY;
+    //     Q_append(&runq, old_thread);
+    //     cur_thread = Q_pop(&runq);
+    //     cur_thread->state = RUNNING;
+    //     th_trace("switching from tid=%d to tid=%d\n", old_thread->tid, cur_thread->tid);
+    //     rpi_cswitch(&old_thread->saved_sp, cur_thread->saved_sp);
+    // }
+    
   if (!Q_empty(&runq)) {
+    // printk("in tid %d", cur_thread->tid);
     rpi_thread_t *old_thread = cur_thread;
+    // cur_thread = Q_schedule_simple(old_thread, &runq);
+    // old_thread->state = READY;
+    // cur_thread = Q_schedule(old_thread, &runq, schedule);
 
     if (old_thread->state != BLOCKED) {
         old_thread->state = READY;
         cur_thread = Q_schedule(old_thread, &runq, schedule);
     } else {
+        // demand(false, look what you made me do);
         Q_append(&blockq, old_thread);
 
         cur_thread = Q_schedule(NULL, &runq, schedule);
     }
 
+    // dev_barrier();
     cur_thread->state = RUNNING;  // This could be the old thread if we rescheduled ourselves (i.e. don't actually switch)
     system_enable_interrupts();
     if (old_thread->saved_sp != cur_thread->saved_sp) {
       th_trace("pr: switching from tid=%d to tid=%d\n", old_thread->tid, cur_thread->tid);
       rpi_cswitch(&old_thread->saved_sp, cur_thread->saved_sp);
     }
+    // else {
+        // th_trace("pr: NOT switching from tid=%d to tid=%d\n", old_thread->tid, cur_thread->tid);
+    // }
+    // system_disable_interrupts();
+    // th_trace("SHOULD NOT HIT!");
+    // system_enable_interrupts();
+    // return (uint32_t)cur_thread->saved_sp;
+    // rpi_cswitch_preemptive(&old_thread->saved_sp, cur_thread->saved_sp);
   } else {
     system_enable_interrupts();
   }
@@ -307,7 +386,30 @@ void rpi_thread_start_preemptive(schedule_type schedule_rule) {
         scheduler_thread->saved_sp = scheduler_thread->stack + THREAD_MAXSTACK - (LR_OFFSET - R4_OFFSET) - 1;
     }
 
+  //     if (!Q_empty(&runq)) {
+  //   // printk("in tid %d", cur_thread->tid);
+  //   rpi_thread_t *old_thread = cur_thread;
+  //   // cur_thread = Q_schedule_simple(old_thread, &runq);
+  //   cur_thread = Q_schedule(old_thread, &runq, schedule);
+
+  //   th_trace("pr: switching from tid=%d to tid=%d\n", old_thread->tid, cur_thread->tid);
+  //   // dev_barrier();
+  //   system_enable_interrupts();
+  //   if (old_thread->saved_sp != cur_thread->saved_sp) {
+  //     rpi_cswitch(&old_thread->saved_sp, cur_thread->saved_sp);
+  //   }
+  //   // system_disable_interrupts();
+  //   // th_trace("SHOULD NOT HIT!");
+  //   // system_enable_interrupts();
+  //   // return (uint32_t)cur_thread->saved_sp;
+  //   // rpi_cswitch_preemptive(&old_thread->saved_sp, cur_thread->saved_sp);
+  // } else {
+  //   system_enable_interrupts();
+  // }
+
     if (!Q_empty(&runq)) {
+        // cur_thread = Q_pop(&runq);
+        // cur_thread = Q_find(&runq, rt_cmp);
         cur_thread = Q_schedule(NULL, &runq, schedule);
         demand(cur_thread->state == READY, scheduled thread must be ready);
         cur_thread->state = RUNNING;
@@ -324,6 +426,7 @@ void rpi_set_preemption(int val) {
   if (val) {
     int_init();
     timer_interrupt_init(0x100);
+    // timer_interrupt_init(0xe0);
     system_enable_interrupts();
   } else {
     panic("Disabling preemption not implemented!\n");
@@ -331,13 +434,19 @@ void rpi_set_preemption(int val) {
 }
 
 void interrupt_vector_preemptive(uint32_t pc) {
+  // critical_section_start:
+  // __asm__ __volatile__("critical_section_start:");
+  // asm volatile("critical_section_start:");
+  // rpi_print_regs((void *)pc);
   system_disable_interrupts();
+  // dev_barrier();
   unsigned pending = GET32(IRQ_basic_pending);
 
   // if this isn't true, could be a GPU interrupt (as discussed in Broadcom):
   // just return.  [confusing, since we didn't enable!]
   if ((pending & RPI_BASIC_ARM_TIMER_IRQ) == 0) {
     printk("other (DIE)!\n");
+    // return pc;
     return;
   };
 
@@ -350,7 +459,12 @@ void interrupt_vector_preemptive(uint32_t pc) {
    * Q: if we delete?
    */
   PUT32(arm_timer_IRQClear, 1);
+  // system_enable_interrupts();
+  // printk("Switch\n");
+  // printk("pc:%x\n", pc);
   scheduler_interrupt_cnt++;
+  // rpi_print_regs((void *)cur_thread->saved_sp);
+  // rpi_print_regs((void *)0x104000);
 
   /*
     TRACE:thread_code:in thread tid=1, with x=0
@@ -373,27 +487,63 @@ void interrupt_vector_preemptive(uint32_t pc) {
   */
 
   /* Handle context-switch logic here!!! */
+//   output("intr\n");
+
+  // Preemptive yield
+  // printk("first in tid %d", cur_thread->tid);
   if (!Q_empty(&runq)) {
+    // printk("in tid %d", cur_thread->tid);
     rpi_thread_t *old_thread = cur_thread;
+    // cur_thread = Q_schedule_simple(old_thread, &runq);
     if (old_thread->state != BLOCKED) {
         old_thread->state = READY;
         cur_thread = Q_schedule(old_thread, &runq, schedule);
     } else {
+        // demand(false, look what you made me do);
         Q_append(&blockq, old_thread);
 
         cur_thread = Q_schedule(NULL, &runq, schedule);
     }
+    // output("Scheduled tid=%d\n", cur_thread->tid);
     demand(cur_thread->state == READY, scheduled thread must be ready);
 
+    // dev_barrier();
     cur_thread->state = RUNNING;  // This could be the old thread if we rescheduled ourselves (i.e. don't actually switch)
     system_enable_interrupts();
     if (old_thread->saved_sp != cur_thread->saved_sp) {
       th_trace("pr: switching from tid=%d to tid=%d\n", old_thread->tid, cur_thread->tid);
       rpi_cswitch(&old_thread->saved_sp, cur_thread->saved_sp);
     }
+    // else {
+        // th_trace("pr: NOT switching from tid=%d to tid=%d\n", old_thread->tid, cur_thread->tid);
+    // }
+    // system_disable_interrupts();
+    // th_trace("SHOULD NOT HIT!");
+    // system_enable_interrupts();
+    // return (uint32_t)cur_thread->saved_sp;
+    // rpi_cswitch_preemptive(&old_thread->saved_sp, cur_thread->saved_sp);
   } else {
     system_enable_interrupts();
   }
+  // critical_section_end:
+  // asm volatile("critical_section_end:");
+
+  // rpi_yield();
+
+  // increment the counter for <pc>.
+  // gprof_inc(pc);
+
+  // this doesn't need to stay here.
+  // static unsigned last_clk = 0;
+  // unsigned clk = timer_get_usec();
+  // period = last_clk ? clk - last_clk : 0;
+  // last_clk = clk;
+
+  // Q: if we put a print statement?
+  // th_trace("Mysteriously HIT!");
+  // system_enable_interrupts();
+  // dev_barrier();
+  // return pc;
 }
 
 /* ======================================================================== */
