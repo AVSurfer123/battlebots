@@ -14,8 +14,8 @@ enum{
     PWM_CLK_DIV = (PWM_CLOCK + 0x4)
 
 };
-#define PWM_PASSWD      0x5A000000 //idek chatgpt told me to
-#define CLK_CTL_STOP    0x1
+#define PWM_PASSWD      0x5A000000 
+#define CLK_CTL_STOP    0x10
 #define CLK_CTL_BUSY    0x8
 #define CLK_CTL_ENAB    0x11
 
@@ -51,17 +51,20 @@ enum {
     // bit 14 - reserved
     // bit 15 - MSEN2 (PWM/MS algortihm)                                0
     // bits 16-31 - reserverd
-#define ENABLE_PWM_CTL_1 0x1
-#define ENABLE_PWM_CTL_2 0x100
+#define ENABLE_PWM_CTL_1 0x81
+#define ENABLE_PWM_CTL_2 0x8100
 #define DISABLE_PWM_CTL 0x0
-#define PWM_DMAC_VAL    ((1 <<31) | (15 << 8) | 15)
 
 
 // =========================== functions ===========================
 void pwm_clock_config(uint32_t freq);
 
-uint8_t pwm_init_gpio(uint32_t pin);
+uint8_t pwm_gpio(uint32_t pin, uint32_t init);
 
-void pwm_init(uint8_t pin, uint32_t freq, uint32_t duty_cycle);
+void pwm_set(uint8_t pin, uint32_t duty_cycle);
+
+void pwm_init(uint8_t pin, uint32_t duty_cycle);
+
+void pwm_stop();
 
 #endif

@@ -1,21 +1,23 @@
 #include "rpi.h"
 #include "pwm.h"
 
-#define    PWM_PIN      12
-#define    GPIO_PIN     13
+#define    CONTIUOS_PWM_PIN      13
+#define    SERVO_PWM_PIN     12
 
 void notmain(void) { 
-    gpio_set_output(GPIO_PIN);
-    gpio_set_on(GPIO_PIN);
+    pwm_init(SERVO_PWM_PIN, 20);
+    // pwm_init(CONTIUOS_PWM_PIN, 1);
 
-    pwm_init(PWM_PIN, 7, 50);
+    delay_ms(2000);
 
-    for(int i=0; i<100; i++){
-        gpio_set_on(GPIO_PIN);
-        delay_ms(50);
-        gpio_set_off(GPIO_PIN);
-        delay_ms(50);
-    }
+    pwm_set(SERVO_PWM_PIN, 60);
+    delay_ms(2000);
+    pwm_set(SERVO_PWM_PIN, 80);
+    delay_ms(2000);
 
+
+    pwm_stop();
+    gpio_set_output(SERVO_PWM_PIN);
+    gpio_set_off(SERVO_PWM_PIN);
 }
 

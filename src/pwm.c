@@ -1,17 +1,15 @@
 #include "rpi.h"
 #include "pwm.h"
 
-#define PLLC_CNTL 0x5c
-#define PLLC_DIV 0x60
-#define PLLC_STAT 0x64
-#define GPIO_BASE 0x20200000
+#define PRINT           1
 
-#define CLK_BASE_ADDR CLOCK_MANAGER // Base address for clock module
-#define PWM_CLOCK_ID 0              // ID of the PWM clock (BCM2835 has only one PWM clock)
-#define PWM_CLOCK_DIVIDER 16        // Set the PWM clock divider to 16
-
+uint32_t clock_configed = 0;
 void pwm_config_clock(uint32_t divisor)
 {
+    if(clock_configed)
+        return;
+
+    if(PRINT) trace("config pwm clock\n");
     assert(divisor < 0xfff);
 
     // Stop PWM clock
@@ -27,6 +25,8 @@ void pwm_config_clock(uint32_t divisor)
 
     // enable PWM clock
     PUT32(PWM_CLK_CTL, PWM_PASSWD | CLK_CTL_ENAB);
+
+    clock_configed = 1;
 }
 
 // this function initalizes a given pin to pwm then retruns which PWM it is (0 or 1)
@@ -39,25 +39,36 @@ void pwm_config_clock(uint32_t divisor)
 // gpio41 - alt0 - PWM1
 // gpio45 - alt0 - PWM1
 // there are two more pins on p140 but not on p102
-uint8_t pwm_init_gpio(uint32_t pin)
+uint8_t pwm_gpio(uint32_t pin, uint32_t init)
 {
     switch (pin)
     {
     case 12:
     case 40:
-        gpio_set_function(pin, GPIO_FUNC_ALT0);
+        if(init){
+            gpio_set_function(pin, GPIO_FUNC_ALT0);
+            if(PRINT) trace("pin %d: set for PMW0 (GPIO_FUNC_ALT0)\n", pin);
+        }
         return 1;
     case 13:
     case 41:
     case 45:
-        gpio_set_function(pin, GPIO_FUNC_ALT0);
-        trace("pin %d: set for PMW1 (GPIO_FUNC_ALT0)\n", pin);
+        if(init){
+            gpio_set_function(pin, GPIO_FUNC_ALT0);
+            if(PRINT) trace("pin %d: set for PMW1 (GPIO_FUNC_ALT0)\n", pin);
+        }
         return 2;
     case 18:
-        gpio_set_function(pin, GPIO_FUNC_ALT5);
+        if(init){
+            gpio_set_function(pin, GPIO_FUNC_ALT5);
+            if(PRINT) trace("pin %d: set for PMW0 (GPIO_FUNC_ALT5)\n", pin);
+        }
         return 1;
     case 19:
-        gpio_set_function(pin, GPIO_FUNC_ALT5);
+        if(init){
+            gpio_set_function(pin, GPIO_FUNC_ALT5);
+            if(PRINT) trace("pin %d: set for PMW1 (GPIO_FUNC_ALT5)\n", pin);
+        }
         return 2;
     default:
         panic("pwm initization: pin %d does not have PWM\n", pin);
@@ -65,35 +76,83 @@ uint8_t pwm_init_gpio(uint32_t pin)
     }
 }
 
-void pwm_init(uint8_t pin, uint32_t freq, uint32_t duty_cycle)
+void pwm_set(uint8_t pin, uint32_t duty_cycle)
 {
-    uint32_t resolution = 2048;
+    if(PRINT) trace("pwm set on %d with duty_cycle=%d\n", pin, duty_cycle);
+    uint32_t resolution = 3000;
     uint32_t data = resolution * duty_cycle / 100;
 
     // initalize pin for PWM
-    uint8_t pwm_channel = pwm_init_gpio(pin);
-
-    // configure pwm clock
-    pwm_config_clock(16);
+    uint8_t pwm_channel = pwm_gpio(pin, 0);
 
     // configure pwm registers
     // disable pwm
+    uint32_t og_control = GET32(PWM_CTL);
     PUT32(PWM_CTL, DISABLE_PWM_CTL);
 
-    if(pwm_channel == 1){
+    if (pwm_channel == 1)
+    {
         // set pwm data and range
-        PUT32(PWM_RNG1, resolution); // set PWM range to 1024
-        PUT32(PWM_DAT1, data); // set PWM duty cycle
+        PUT32(PWM_RNG1, resolution);
+        PUT32(PWM_DAT1, data);       // set PWM duty cycle
 
         // enable PWM - read write modify
-        PUT32(PWM_CTL, GET32(PWM_CTL) | ENABLE_PWM_CTL_1);
+        PUT32(PWM_CTL, og_control | ENABLE_PWM_CTL_1);
     }
-    if(pwm_channel == 2){
+    if (pwm_channel == 2)
+    {
         // set pwm data and range
-        PUT32(PWM_RNG2, resolution); // set PWM range to 1024
-        PUT32(PWM_DAT2, data); // set PWM duty cycle
+        PUT32(PWM_RNG2, resolution);
+        PUT32(PWM_DAT2, data);       // set PWM duty cycle
 
         // enable PWM - read write modify
-        PUT32(PWM_CTL, GET32(PWM_CTL) | ENABLE_PWM_CTL_2);
+        PUT32(PWM_CTL, og_control | ENABLE_PWM_CTL_2);
     }
+}
+
+void pwm_init(uint8_t pin, uint32_t duty_cycle)
+{
+    if(PRINT) trace("pwm init on %d with duty_cycle=%d\n", pin, duty_cycle);
+    uint32_t resolution = 100; //3000;
+    uint32_t data = 8; // resolution * duty_cycle / 100;
+
+    // initalize pin for PWM
+    uint8_t pwm_channel = pwm_gpio(pin, 1);
+
+    // configure pwm registers
+    // disable pwm
+    uint32_t og_control = GET32(PWM_CTL);
+    PUT32(PWM_CTL, DISABLE_PWM_CTL);
+
+    // configure pwm clock
+    pwm_config_clock(128);
+
+    if (pwm_channel == 1)
+    {
+        // set pwm data and range
+        PUT32(PWM_RNG1, resolution); // set PWM range
+        delay_ms(50);
+        PUT32(PWM_DAT1, data);       // set PWM duty cycle
+        delay_ms(50);
+
+        // enable PWM - read write modify
+        PUT32(PWM_CTL, og_control | ENABLE_PWM_CTL_1);
+    }
+    if (pwm_channel == 2)
+    {
+        // set pwm data and range
+        PUT32(PWM_RNG2, resolution); // set PWM range
+        delay_ms(50);
+        PUT32(PWM_DAT2, data);       // set PWM duty cycle
+        delay_ms(50);
+
+        // enable PWM - read write modify
+        PUT32(PWM_CTL, og_control | ENABLE_PWM_CTL_2);
+    }
+    delay_ms(50);
+    trace("pwm status: %x\n", GET32(PWM_STA));
+}
+
+void pwm_stop(){
+    PUT32(PWM_CTL, DISABLE_PWM_CTL);
 }
