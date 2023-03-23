@@ -8,7 +8,7 @@ PROGS := $(wildcard [23]-*.c)
 PROGS := read_joystick_from_user.c robot_main.c pwm-test.c 1-blink.c
 
 
-COMMON_SRC := test-interrupts.c pwm.c
+COMMON_SRC := test-interrupts.c pwm.c encoders.c
 
 STAFF_OBJS := ../libpi/staff-objs/new-spi.o
 
