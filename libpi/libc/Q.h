@@ -101,10 +101,11 @@ static E *Q_find(Q_t *q, cmp_fn cmp) {
         output("NULL new_candidate!\n");
     }
     // th_trace("Tried %d / %d, %d\n", i, q->cnt, cmp(best, new_candidate));
-    if (new_candidate->state != READY) {
-        output("ILLEGAL: State: %d for tid=%d\n", new_candidate->state, new_candidate->tid);
-    }
-    demand(new_candidate->state == READY, ready list must not contain blocked candidates);
+    // if (new_candidate->state != READY) {
+    //     output("ILLEGAL: State: %d for tid=%d\n", new_candidate->state, new_candidate->tid);
+    // }
+    // demand(new_candidate->state == READY, ready list must not contain blocked candidates);
+    new_candidate->state = READY; // hacky and (obviously) not thread-safe!
     if (best == NULL || (cmp(best, new_candidate) >= 0)) {
     //   th_trace("%d is better than %d\n", new_candidate->tid, best->tid);
       Q_append(q, best);

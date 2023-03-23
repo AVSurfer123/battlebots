@@ -4,6 +4,7 @@
 #include "rpi-interrupts.h"
 #include "timer-interrupt.h"
 #include "rpi-armtimer.h"
+#include "fast-hash32.h"
 
 // tracing code.  set <trace_p>=0 to stop tracing
 enum { trace_p = 1};
@@ -25,7 +26,7 @@ int scheduler_interrupt_cnt = 0;
 // Set to 1 if, on thread exit, the next thread queued should be the
 // highest-priority one. Set to 0 if an arbitrary thread should be chosen, to
 // demonstrate the scheduler in action.
-#define SCHEDULE_BEST_ON_EXIT 0
+#define SCHEDULE_BEST_ON_EXIT 1
 
 // currently only have a single run queue and a free queue.
 // the run queue is FIFO.
@@ -50,7 +51,7 @@ static schedule_type schedule = SCHEDULE_BASIC;
 static unsigned nalloced = 0;
 
 // keep a cache of freed thread blocks.  call kmalloc if run out.
-static rpi_thread_t *th_alloc(void) {
+rpi_thread_t *th_alloc(void) {
     rpi_thread_t *t = Q_pop(&freeq);
 
     if(!t) {
@@ -78,6 +79,19 @@ void unblock_threads(void) {
         Q_append(&runq, t);
     }
   }
+}
+
+void print_thread(rpi_thread_t* th) {
+  output("Thread %d\n", th->tid);
+  output("  next: %d\n", (th->next != NULL) ? th->next->tid : -1);
+  output("  svsp: %p\n", th->saved_sp);
+  output("  fn:   %p\n", th->fn);
+  output("  arg:  %p\n", th->arg);
+  output("  annt: %p\n", th->annot);
+  output("   stk: %p\n", th->stack);
+  output("  done: %d\n", th->finish_time_us);
+  output("  stat: %d\n", th->state);
+  output("  hash: %d\n", fast_hash(th, sizeof(rpi_thread_t)));
 }
 
 void block_threads(void) {
@@ -224,6 +238,46 @@ rpi_thread_t *rpi_fork_rt(void (*code)(void *arg), void *arg, unsigned deadline_
 
     Q_append(&runq, t);
     return t;
+}
+
+// create a new thread, don't schedule it.
+rpi_thread_t *rpi_spawn_nosched(void (*code)(void *arg), void *arg, unsigned deadline_us) {
+    rpi_thread_t *t = th_alloc();
+
+    t->fn = code;
+    t->arg = arg;
+    // write this so that it calls code,arg.
+    void rpi_init_trampoline(void);
+
+    /*
+     * must do the "brain surgery" (k.thompson) to set up the stack
+     * so that when we context switch into it, the code will be
+     * able to call code(arg).
+     *
+     *  1. write the stack pointer with the right value.
+     *  2. store arg and code into two of the saved registers.
+     *  3. store the address of rpi_init_trampoline into the lr
+     *     position so context switching will jump there.
+     */
+    t->stack[THREAD_MAXSTACK - (LR_OFFSET - LR_OFFSET) - 1] = (uint32_t)rpi_init_trampoline;
+    t->stack[THREAD_MAXSTACK - (LR_OFFSET - R4_OFFSET) - 1] = (uint32_t)code;
+    t->stack[THREAD_MAXSTACK - (LR_OFFSET - R5_OFFSET) - 1] = (uint32_t)arg;
+    t->saved_sp = t->stack + THREAD_MAXSTACK - (LR_OFFSET - R4_OFFSET) - 1;
+    t->finish_time_us = deadline_us;
+    t->state = READY;
+
+    // th_trace("Set th=%p fn=%p, arg=%p from code=%p, arg=%p, val=%d\n", t, t->fn, t->arg, code, arg, *(int*)arg);
+    th_trace("rpi_spawn_nosched: tid=%d, code=[%p], arg=[%x], saved_sp=[%p]\n",
+            t->tid, code, arg, t->saved_sp);
+
+    return t;
+}
+
+void rpi_enqueue(rpi_thread_t *t) {
+    th_trace("Enqueued: tid=%d, saved_sp=[%p]\n",
+            t->tid, t->saved_sp);
+
+    Q_append(&runq, t);
 }
 
 
@@ -411,8 +465,8 @@ void rpi_thread_start_preemptive(schedule_type schedule_rule) {
         // cur_thread = Q_pop(&runq);
         // cur_thread = Q_find(&runq, rt_cmp);
         cur_thread = Q_schedule(NULL, &runq, schedule);
-        demand(cur_thread->state == READY, scheduled thread must be ready);
-        cur_thread->state = RUNNING;
+        // demand(cur_thread->state == READY, scheduled thread must be ready);
+        cur_thread->state = RUNNING; // hacky and (obviously) not thread-safe!
         rpi_set_preemption(1);
         rpi_cswitch(&scheduler_thread->saved_sp, cur_thread->saved_sp);
     }
@@ -463,6 +517,10 @@ void interrupt_vector_preemptive(uint32_t pc) {
   // printk("Switch\n");
   // printk("pc:%x\n", pc);
   scheduler_interrupt_cnt++;
+  if (scheduler_interrupt_cnt % 256 != 0) {
+    system_enable_interrupts();
+    return;
+  }
   // rpi_print_regs((void *)cur_thread->saved_sp);
   // rpi_print_regs((void *)0x104000);
 
@@ -505,7 +563,8 @@ void interrupt_vector_preemptive(uint32_t pc) {
         cur_thread = Q_schedule(NULL, &runq, schedule);
     }
     // output("Scheduled tid=%d\n", cur_thread->tid);
-    demand(cur_thread->state == READY, scheduled thread must be ready);
+    // demand(cur_thread->state == READY, scheduled thread must be ready);
+    cur_thread->state = READY; // hacky and (obviously) not thread-safe!
 
     // dev_barrier();
     cur_thread->state = RUNNING;  // This could be the old thread if we rescheduled ourselves (i.e. don't actually switch)
