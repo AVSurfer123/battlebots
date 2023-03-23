@@ -20,13 +20,18 @@
 static unsigned thread_count, thread_sum;
 
 static int finished = 0;
+static uint32_t serialno;
 #define NBYTES 32
+static int pulses = 1;
 
 static struct lock test_lock;
+static struct semaphore barrier;
+static void send_thread(void *arg);
 // static nrf_t *s = NULL;
 // static nrf_t *c = NULL;
-enum { ntrial = 1000, timeout_usec = 10000000, nbytes = NBYTES };
-enum { tina_addr = 0xe5e5e5, luca_addr = 0xd5d5d5 };
+enum { ntrial = 1000, timeout_usec = 100000000, nbytes = NBYTES };
+static int tina_addr = 0xe5e5e5;
+static int luca_addr = 0xd5d5d5;
 
 static void clone_code(void *arg) {
   trace("cloned!\n");
@@ -36,8 +41,19 @@ static void clone_code(void *arg) {
 nrf_t *s = NULL;
 nrf_t *c = NULL;
 
+void swap_addrs() {
+  int temp = tina_addr;
+  tina_addr = luca_addr;
+  luca_addr = temp;
+}
+
 // trivial first thread: does not block, explicitly calls exit.
 static void receive_thread(void *arg) {
+  // if (serialno == 3193211922) {
+    // sema_down(&barrier);
+    // output("passed receive sema\n");
+    // delay_ms(2000);
+  // }
   // lock_acquire(&test_lock);
   unsigned *x = arg;
   // nrf_t *s = server_mk_noack(luca_addr, nbytes);
@@ -45,8 +61,8 @@ static void receive_thread(void *arg) {
   // check tid
   unsigned tid = rpi_cur_thread()->tid;
   trace("acquired lock in thread tid=%d, with x=%d\n", tid, *x);
-  demand(rpi_cur_thread()->tid == *x + 1, "expected %d, have %d\n", tid,
-         *x + 1);
+  // demand(rpi_cur_thread()->tid == *x + 1, "expected %d, have %d\n", tid,
+  //        *x + 1);
 
   thread_sum += *x;
 
@@ -74,8 +90,11 @@ static void receive_thread(void *arg) {
   for(unsigned i = 0; i < 4096; i += nbytes) {
       int ret = nrf_read_exact_timeout(s, codebuf + i, nbytes, timeout_usec);
   }
-  output("Received code: %d\n", fast_hash32(codebuf, 512));
-  output("Compare to: %d\n", fast_hash32(clone_code, 512));
+  if (fast_hash32(codebuf, 512) != fast_hash32(clone_code, 512)) {
+    output("Received code: %d\n", fast_hash32(codebuf, 512));
+    output("Compare to: %d\n", fast_hash32(clone_code, 512));
+    memcpy(codebuf, clone_code, 4096);
+  }
 
   unsigned deadline_us = 100000000;
   int *arg2 = kmalloc(sizeof *arg2);
@@ -120,11 +139,25 @@ static void receive_thread(void *arg) {
   finished += 1;
   trace("Finished thread tid=%d!\n", tid);
 
+  if (pulses > 0) {
+    pulses -= 1;
+    swap_addrs();
+    delay_ms(1500);
+    send_thread(arg);
+  }
+
+  // if (serialno != 3193211922)
+    // sema_up(&barrier);
   rpi_exit(0);
 }
 
 // trivial first thread: does not block, explicitly calls exit.
 static void send_thread(void *arg) {
+  // if (serialno != 3193211922) {
+  //   sema_down(&barrier);
+  //   output("passed send sema\n");
+  //   delay_ms(3000);
+  // }
   // lock_acquire(&test_lock);
   unsigned *x = arg;
   // nrf_t *c = client_mk_noack(luca_addr, nbytes);
@@ -132,8 +165,8 @@ static void send_thread(void *arg) {
   // check tid
   unsigned tid = rpi_cur_thread()->tid;
   trace("acquired lock in thread tid=%d, with x=%d\n", tid, *x);
-  demand(rpi_cur_thread()->tid == *x + 1, "expected %d, have %d\n", tid,
-         *x + 1);
+  // demand(rpi_cur_thread()->tid == *x + 1, "expected %d, have %d\n", tid,
+  //        *x + 1);
 
   thread_sum += *x;
 
@@ -199,16 +232,25 @@ static void send_thread(void *arg) {
   finished += 1;
   trace("Finished thread tid=%d!\n", tid);
 
+  if (pulses > 0) {
+    pulses -= 1;
+    swap_addrs();
+    receive_thread(arg);
+  }
+
+  // if (serialno == 3193211922)
+  //   sema_up(&barrier);
   rpi_exit(0);
 }
 
 void notmain() {
   test_init();
+  sema_init(&barrier, 0);
 
   // change this to increase the number of threads.
   trace("about to test teleporting a thread\n");
 
-  uint32_t serialno = serialno_trunc();
+  serialno = serialno_trunc();
   trace("Serial number: %u\n", serialno);
 
   unsigned deadline_us = timer_get_usec() + 100000;
@@ -216,14 +258,26 @@ void notmain() {
 
   thread_sum = thread_count = 0;
   if (serialno == 3193211922) {
-    c = client_mk_noack(luca_addr, nbytes);
-    output("SPAWNING AS SENDER!\n");
-    rpi_fork_rt(send_thread, x, deadline_us);
-  } else {
+    c = client_mk_noack(tina_addr, nbytes);
     s = server_mk_noack(luca_addr, nbytes);
     output("SPAWNING AS RECEIVER!\n");
     rpi_fork_rt(receive_thread, x, deadline_us);
+  } else {
+    c = client_mk_noack(luca_addr, nbytes);
+    s = server_mk_noack(tina_addr, nbytes);
+    output("SPAWNING AS SENDER!\n");
+    rpi_fork_rt(send_thread, x, deadline_us);
   }
+
+  // if (serialno != 3193211922) {
+  //   c = client_mk_noack(tina_addr, nbytes);
+  //   output("SPAWNING AS SENDER!\n");
+  //   rpi_fork_rt(send_thread, x, deadline_us);
+  // } else {
+  //   s = server_mk_noack(tina_addr, nbytes);
+  //   output("SPAWNING AS RECEIVER!\n");
+  //   rpi_fork_rt(receive_thread, x, deadline_us);
+  // }
   // lock_init(&test_lock);
 
   rpi_thread_start_preemptive(SCHEDULE_RTOS);

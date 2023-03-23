@@ -39,7 +39,7 @@ system_disable_interrupts:
 .globl _interrupt_table
 .globl _interrupt_table_end
 _interrupt_table:
-  ldr pc, _reset_asm
+  ldr pc, _reset_asm    @ EVIL!
   ldr pc, _undefined_instruction_asm
   ldr pc, _software_interrupt_asm
   ldr pc, _prefetch_abort_asm
@@ -117,6 +117,7 @@ interrupt_asm_preemptive:
                                               
   msr cpsr_c, #(IRQ_MODE | 0x80)     /* Exit from IRQ */
   ldmfd sp!, {pc}^
+  bl print_stupid
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

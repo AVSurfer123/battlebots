@@ -26,7 +26,7 @@ int scheduler_interrupt_cnt = 0;
 // Set to 1 if, on thread exit, the next thread queued should be the
 // highest-priority one. Set to 0 if an arbitrary thread should be chosen, to
 // demonstrate the scheduler in action.
-#define SCHEDULE_BEST_ON_EXIT 1
+#define SCHEDULE_BEST_ON_EXIT 0
 
 // currently only have a single run queue and a free queue.
 // the run queue is FIFO.
@@ -465,8 +465,8 @@ void rpi_thread_start_preemptive(schedule_type schedule_rule) {
         // cur_thread = Q_pop(&runq);
         // cur_thread = Q_find(&runq, rt_cmp);
         cur_thread = Q_schedule(NULL, &runq, schedule);
-        // demand(cur_thread->state == READY, scheduled thread must be ready);
-        cur_thread->state = RUNNING; // hacky and (obviously) not thread-safe!
+        demand(cur_thread->state == READY, scheduled thread must be ready);
+        cur_thread->state = RUNNING;
         rpi_set_preemption(1);
         rpi_cswitch(&scheduler_thread->saved_sp, cur_thread->saved_sp);
     }
@@ -517,10 +517,6 @@ void interrupt_vector_preemptive(uint32_t pc) {
   // printk("Switch\n");
   // printk("pc:%x\n", pc);
   scheduler_interrupt_cnt++;
-  if (scheduler_interrupt_cnt % 256 != 0) {
-    system_enable_interrupts();
-    return;
-  }
   // rpi_print_regs((void *)cur_thread->saved_sp);
   // rpi_print_regs((void *)0x104000);
 
@@ -563,8 +559,7 @@ void interrupt_vector_preemptive(uint32_t pc) {
         cur_thread = Q_schedule(NULL, &runq, schedule);
     }
     // output("Scheduled tid=%d\n", cur_thread->tid);
-    // demand(cur_thread->state == READY, scheduled thread must be ready);
-    cur_thread->state = READY; // hacky and (obviously) not thread-safe!
+    demand(cur_thread->state == READY, scheduled thread must be ready);
 
     // dev_barrier();
     cur_thread->state = RUNNING;  // This could be the old thread if we rescheduled ourselves (i.e. don't actually switch)

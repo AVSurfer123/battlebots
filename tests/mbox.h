@@ -138,7 +138,7 @@ serialno_trunc() {
   u[5] = 0;          // response buffer low bits
   u[6] = 0;          // response buffer high bits
   u[7] = 0;          // end tag
-  
+
   mbox_write(MBOX_CH, u);
   mbox_read(MBOX_CH);
 

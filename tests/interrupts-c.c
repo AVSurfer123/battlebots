@@ -28,9 +28,9 @@ void int_init(void) {
 
 #define UNHANDLED(msg,r) \
 	panic("ERROR: unhandled exception <%s> at PC=%x\n", msg,r)
-// void fast_interrupt_vector(unsigned pc) {
-// 	UNHANDLED("fast", pc);
-// }
+void fast_interrupt_vector(unsigned pc) {
+	UNHANDLED("fast", pc);
+}
 
 // this is used for syscalls.
 void software_interrupt_vector(unsigned pc) {
