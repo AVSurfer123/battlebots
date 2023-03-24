@@ -42,7 +42,7 @@ void connect_to_pi() {
     while (1) {
         int MAGIC = 0xbadaba;
         put_uint32(pi_fd, MAGIC);
-        usleep(1);
+        usleep(100000);
         uint8_t end = 0;
         if (read(pi_fd, &end, 1) == 1) {
             printf("Got a byte from the Pi\n");
@@ -55,7 +55,7 @@ void connect_to_pi() {
             break;
         }
     }
-    usleep(1000000);
+    usleep(500000);
 }
 
 void* send_joystick(void* arg) {
@@ -71,7 +71,7 @@ void* send_joystick(void* arg) {
             uint8_t* ptr = (uint8_t*) &event;
             put_uint8(pi_fd, ptr[i]);
         }
-        // Write at 50 Hz
+        // Write at 100 Hz
         usleep(10000);
     }
     printf("Joystick disconnected! Ending process\n");
