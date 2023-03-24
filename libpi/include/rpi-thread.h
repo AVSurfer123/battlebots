@@ -61,9 +61,9 @@ typedef struct rpi_thread {
     // threads waiting on the current one to exit.
     // struct rpi_thread *waiters;
 
-	uint32_t stack[THREAD_MAXSTACK];
     uint32_t finish_time_us;
     enum thread_state state;
+	uint32_t stack[THREAD_MAXSTACK];
     struct list_elem elem;
 } rpi_thread_t;
 
@@ -75,6 +75,8 @@ _Static_assert(offsetof(rpi_thread_t, saved_sp) == 0,
                 "stack save area must be at offset 0");
 
 // main routines.
+
+void print_thread(rpi_thread_t* th);
 
 typedef enum {
   SCHEDULE_BASIC = 0,
@@ -104,8 +106,11 @@ rpi_thread_t *rpi_cur_thread(void);
 // create a new thread that takes a single argument.
 typedef void (*rpi_code_t)(void *);
 
+rpi_thread_t *th_alloc(void);
 rpi_thread_t *rpi_fork(rpi_code_t code, void *arg);
 rpi_thread_t *rpi_fork_rt(rpi_code_t code, void *arg, unsigned deadline_us);
+rpi_thread_t *rpi_spawn_nosched(rpi_code_t code, void *arg, unsigned deadline_us);
+void rpi_enqueue(rpi_thread_t *t);
 
 // exit current thread: switch to the next runnable
 // thread, or exit the threads package.
