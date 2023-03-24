@@ -8,6 +8,7 @@
 #include "encoders.h"
 #include <limits.h>
 #include "mbox.h"
+#include "pwm.h"
 
 #define LEFT_ENABLE 2
 #define LEFT_A 4
@@ -16,12 +17,6 @@
 #define RIGHT_ENABLE 21
 #define RIGHT_A 17
 #define RIGHT_B 19
-
-#define LEFT_ENC_A 3
-#define LEFT_ENC_B 0
-
-#define RIGHT_ENC_A 20
-#define RIGHT_ENC_B 24
 
 #define SPRAYER 12
 
@@ -130,6 +125,9 @@ void notmain() {
     gpio_set_output(RIGHT_B);
     // gpio_set_output(SPRAYER);
 
+    int pwm_val = 3;
+    pwm_init(SPRAYER, pwm_val);
+
     leftEnc = enc_init(3, 1);
     rightEnc = enc_init(24, 26);
 
@@ -142,6 +140,8 @@ void notmain() {
     js_event event;
     size_t axis;
     int last_packet_time = timer_get_usec();
+
+    int last_button = 0;
 
     while (1) {
         int ret = nrf_read_exact_noblk(client, &event, sizeof(js_event));
@@ -171,11 +171,19 @@ void notmain() {
             clean_reboot();
         }
 
+        if (event.type == JS_EVENT_BUTTON && event.number == 0) {
+            if (event.value == 0 && last_button == 1) {
+                pwm_val = 14 - pwm_val;
+                pwm_set(SPRAYER, pwm_val);
+            }            
+            last_button = event.value;
+        }
+
         // use 4 for dpad
         int forward = -axes[0].y;
         int turn = axes[0].x;
         drive(forward + turn, forward - turn);
-        printk("Drive commands: forward %d turn %d\n", forward, turn);
+        // printk("Drive commands: forward %d turn %d\n", forward, turn);
 
         // drive(40000, 40000);
         // drive(total_wait * 5 + 5000, total_wait * 5 + 5000);
