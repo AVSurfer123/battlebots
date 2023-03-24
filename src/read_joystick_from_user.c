@@ -10,6 +10,8 @@
 #include "nrf-test.h"
 #include "joy_def.h"
 
+nrf_t* server;
+
 // wait until:
 //   (1) there is data (uart_has_data() == 1): return 1.
 //   (2) <timeout> usec expires, return 0.
@@ -21,15 +23,20 @@
 //     counter can overflow.
 static unsigned has_data_timeout(unsigned timeout) {
     uint32_t s = timer_get_usec();
+    js_event event = {.type = 100};
+    int last_hearbeat_time = s;
     while (timer_get_usec() - s < timeout) {
         if (uart_has_data()) {
             return 1;
         }
+        // send heartbeat while we wait for data
+        if (timer_get_usec() - last_hearbeat_time > 500000) {
+            nrf_send_noack(server, client_addr, &event, sizeof(js_event));
+            last_hearbeat_time = timer_get_usec();
+        }
     }
     return 0;
 }
-
-nrf_t* server;
 
 void connect_to_joystick() {
     int MAGIC = 0xbadaba;
@@ -66,7 +73,6 @@ void read_joystick() {
             ptr[i] = uart_get8();
         }
         size_t axis;
-        printk("Read type %d\n", event.type);
         switch (event.type)
         {
             case JS_EVENT_BUTTON:
@@ -96,6 +102,7 @@ void read_joystick() {
             printk("Read type %d\n", event.type);
         }
     }
+    printk("Not receiving data anymore, rebooting\n");
 }
 
 void notmain(void) {

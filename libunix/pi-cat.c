@@ -1,19 +1,6 @@
 #include <ctype.h>
 #include "libunix.h"
 
-// overwrite any unprintable characters with a space.
-// otherwise terminals can go haywire/bizarro.
-// note, the string can contain 0's, so we send the
-// size.
-void remove_nonprint(uint8_t *buf, int n) {
-    for(int i = 0; i < n; i++) {
-        uint8_t *p = &buf[i];
-        if(isprint(*p) || (isspace(*p) && *p != '\r'))
-            continue;
-        *p = ' ';
-    }
-}
-
 // read and echo the characters from the usbtty until it closes 
 // (pi rebooted) or we see a string indicating a clean shutdown.
 void pi_cat(int fd, const char *portname) {

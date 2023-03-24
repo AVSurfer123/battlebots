@@ -137,8 +137,8 @@ int main(int argc, char *argv[])
                 /* Ignore init events. */
                 break;
         }
-        
-        fflush(stdout);
+        // 1000 Hz
+        usleep(1000);
     }
 
     close(js);
