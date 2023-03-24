@@ -33,10 +33,17 @@ enum { ntrial = 1000, timeout_usec = 100000000, nbytes = NBYTES };
 static int tina_addr = 0xe5e5e5;
 static int luca_addr = 0xd5d5d5;
 
-static void clone_code(void *arg) {
-  trace("cloned!\n");
+static void clone_pi_3193211922(void *arg) {
+  output("Cloned! I was sent by pi 3193211922\n");
   rpi_exit(0);
 }
+
+static void clone_pi_978391453(void *arg) {
+  output("Cloned! I was sent by pi 978391453\n");
+  rpi_exit(0);
+}
+
+void (*clone_code)(void *);
 
 nrf_t *s = NULL;
 nrf_t *c = NULL;
@@ -260,11 +267,13 @@ void notmain() {
   if (serialno == 3193211922) {
     c = client_mk_noack(tina_addr, nbytes);
     s = server_mk_noack(luca_addr, nbytes);
+    clone_code = clone_pi_3193211922;
     output("SPAWNING AS RECEIVER!\n");
     rpi_fork_rt(receive_thread, x, deadline_us);
   } else {
     c = client_mk_noack(luca_addr, nbytes);
     s = server_mk_noack(tina_addr, nbytes);
+    clone_code = clone_pi_978391453;
     output("SPAWNING AS SENDER!\n");
     rpi_fork_rt(send_thread, x, deadline_us);
   }
@@ -289,4 +298,3 @@ void notmain() {
   // assert(thread_sum == sum);
   trace("SUCCESS!\n");
 }
-
