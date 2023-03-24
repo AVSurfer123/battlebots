@@ -4,6 +4,7 @@
 #include "joy_def.h"
 #include "timer-interrupt.h"
 #include "test-interrupts.h"
+#include "lock.h"
 #include "encoders.h"
 #include <limits.h>
 
@@ -35,6 +36,7 @@ extern int right_count;
 extern int spray_count;
 extern int left_power;
 extern int right_power;
+static unsigned deadline_us = 100000000;
 
 unsigned abs(int val) {
     if (val < 0) {
@@ -99,8 +101,21 @@ void drive(int left, int right) {
     // printk("Motor power: %u %u\n", left_power, right_power);
 }
 
+static void noop(void *arg) {
+  rpi_exit(0);
+}
+
 void notmain() {
+    const unsigned oneMB = 1024 * 1024;
+    kmalloc_init_set_start((void*)oneMB, oneMB);
     int_init();
+
+    // ================ CODE EXAMPLE ============== //
+    // for (int i = 0; i < 30; i++) {
+    //   rpi_fork_rt(noop, NULL, deadline_us);
+    // }
+    // rpi_thread_start_preemptive(SCHEDULE_RTOS);
+    // ================ CODE EXAMPLE ============== //
 
     client = client_mk_noack(client_addr, sizeof(js_event));
 
