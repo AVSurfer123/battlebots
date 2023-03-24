@@ -6,6 +6,7 @@
 #include "test-interrupts.h"
 #include "encoders.h"
 #include <limits.h>
+#include "pwm.h"
 
 #define LEFT_ENABLE 2
 #define LEFT_A 4
@@ -180,6 +181,9 @@ void notmain() {
     gpio_set_output(RIGHT_B);
     // gpio_set_output(SPRAYER);
 
+    int pwm_val = 11;
+    pwm_init(SPRAYER, pwm_val);
+
     leftEnc = enc_init(3, 1);
     rightEnc = enc_init(24, 26);
 
@@ -192,6 +196,7 @@ void notmain() {
     js_event event;
     size_t axis;
     int last_packet_time = timer_get_usec();
+    int last_button = 0;
 
     while (1) {
         int ret = nrf_read_exact_noblk(client, &event, sizeof(js_event));
@@ -219,6 +224,14 @@ void notmain() {
         if (timer_get_usec() - last_packet_time > 1000000) {
             drive(0, 0);
             clean_reboot();
+        }
+        
+        if (event.type == JS_EVENT_BUTTON && event.number == 0) {
+            if (event.value == 0 && last_button == 1) {
+                pwm_val = 14 - pwm_val;
+                pwm_set(SPRAYER, pwm_val);
+            }            
+            last_button = event.value;
         }
 
         // use 4 for dpad
