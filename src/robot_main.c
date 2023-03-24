@@ -181,7 +181,7 @@ void notmain() {
     gpio_set_output(RIGHT_B);
     // gpio_set_output(SPRAYER);
 
-    int pwm_val = 11;
+    int pwm_val = 10;
     pwm_init(SPRAYER, pwm_val);
 
     leftEnc = enc_init(3, 1);
@@ -238,7 +238,7 @@ void notmain() {
         int forward = -axes[0].y;
         int turn = axes[0].x;
         drive(forward + turn, forward - turn);
-        printk("Drive commands: forward %d turn %d\n", forward, turn);
+        // printk("Drive commands: forward %d turn %d\n", forward, turn);
 
         // drive(40000, 40000);
         // drive(total_wait * 5 + 5000, total_wait * 5 + 5000);
