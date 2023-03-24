@@ -1,6 +1,8 @@
 #include "rpi.h"
 #include "rpi-interrupts.h"
 
+
+int int_inited = 0;
 // initialize global interrupt state.
 void int_init(void) {
     // put interrupt flags in known state. 
@@ -24,6 +26,7 @@ void int_init(void) {
                  n = &_interrupt_table_end - src;
     for(int i = 0; i < n; i++)
         dst[i] = src[i];
+    int_inited = 1;
 }
 
 #define UNHANDLED(msg,r) \

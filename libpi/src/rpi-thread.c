@@ -49,6 +49,7 @@ static schedule_type schedule = SCHEDULE_BASIC;
 
 // total number of thread blocks we have allocated.
 static unsigned nalloced = 0;
+void ashwin_interrupt(unsigned pc);
 
 // keep a cache of freed thread blocks.  call kmalloc if run out.
 rpi_thread_t *th_alloc(void) {
@@ -478,13 +479,10 @@ end:
 void rpi_set_preemption(int val) {
   preemption = val;
   if (val) {
-    output("setting preemption!\n");
     int_init();
     timer_interrupt_init(0x100);
     // timer_interrupt_init(0xe0);
-    output("inited ints 1!\n");
     system_enable_interrupts();
-    output("inited ints 2!\n");
   } else {
     panic("Disabling preemption not implemented!\n");
   }
@@ -520,6 +518,10 @@ void interrupt_vector_preemptive(uint32_t pc) {
   // printk("Switch\n");
   // printk("pc:%x\n", pc);
   scheduler_interrupt_cnt++;
+  if (scheduler_interrupt_cnt % (256 * 0x100 / 10) != 0) {
+    ashwin_interrupt(pc);
+    return;
+  }
   // rpi_print_regs((void *)cur_thread->saved_sp);
   // rpi_print_regs((void *)0x104000);
 

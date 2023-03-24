@@ -475,12 +475,12 @@ end:
     th_trace("done with all threads, returning (%d)\n", scheduler_interrupt_cnt);
 }
 
+extern int int_inited;
 void rpi_set_preemption(int val) {
   preemption = val;
-  if (val) {
+  if (val && (int_inited == 0)) {
     int_init();
-    timer_interrupt_init(0x100);
-    // timer_interrupt_init(0xe0);
+    timer_interrupt_init(10);
     system_enable_interrupts();
   } else {
     panic("Disabling preemption not implemented!\n");
