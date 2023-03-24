@@ -1,8 +1,9 @@
-#ifndef __ENCODERS_H__
-#define __ENCODERS_H__
+#pragma once
 
 typedef struct
 {
+    uint8_t pinA;
+    uint8_t pinB;
     int32_t position;
     int32_t velocity;
     int32_t counts;
@@ -10,6 +11,5 @@ typedef struct
     int32_t lastTime;
 } MotorData;
 
-void get_encoder_velocity(MotorData* data, int A, int B);
-
-#endif
+MotorData* enc_init(int pinA, int pinB);
+void enc_callback(MotorData* data);

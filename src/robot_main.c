@@ -4,6 +4,7 @@
 #include "joy_def.h"
 #include "timer-interrupt.h"
 #include "test-interrupts.h"
+#include "encoders.h"
 #include <limits.h>
 
 #define LEFT_ENABLE 2
@@ -25,6 +26,9 @@
 nrf_t* client;
 
 axis_state axes[6];
+
+MotorData* leftEnc;
+MotorData* rightEnc;
 
 unsigned abs(int val) {
     if (val < 0) {
@@ -97,7 +101,7 @@ int left_count = 0;
 int right_count = 0;
 int spray_count = 0;
 
-int timer_interrupt(uint32_t pc) {
+int timer_interrupt() {
     dev_barrier();
     unsigned pending = GET32(IRQ_basic_pending);
 
@@ -156,7 +160,16 @@ int timer_interrupt(uint32_t pc) {
     return 1;
 }
 
+void interrupt_vector(unsigned pc) {
+    enc_callback(leftEnc);
+    enc_callback(rightEnc);
+    // printk("Left enc: %d, Right enc: %d\n", leftEnc->position, rightEnc->position);
+    timer_interrupt();
+}
+
 void notmain() {
+    int_init();
+
     client = client_mk_noack(client_addr, sizeof(js_event));
 
     gpio_set_output(LEFT_ENABLE);
@@ -167,35 +180,34 @@ void notmain() {
     gpio_set_output(RIGHT_B);
     // gpio_set_output(SPRAYER);
 
-    int_init();
+    leftEnc = enc_init(3, 1);
+    rightEnc = enc_init(24, 26);
+
     // From experimental testing, each cycle in this init function corresponds to 1 microsecond delay
     // If we want 500 Hz PWM with 100 resolution, naive implementation gives us 50,000 Hz clock which means 20 us delay between interrupts
     printk("Initializing timer to %u us delay\n", TIMER_NCYCLES);
     timer_interrupt_init(TIMER_NCYCLES);
-    extern interrupt_fn_t interrupt_fn;
-    interrupt_fn = timer_interrupt;
     cpsr_int_enable();
 
     js_event event;
-    // size_t axis;
-    int total_wait = 0;
+    size_t axis;
+    int last_packet_time = timer_get_usec();
 
     while (1) {
         int ret = nrf_read_exact_noblk(client, &event, sizeof(js_event));
         if (ret != sizeof(js_event)) {
-            // delay_ms(1);
-            total_wait++;
+            // didn't get packet
         }
         else {
-            total_wait = 0;
+            last_packet_time = timer_get_usec();
             switch (event.type)
             {
                 case JS_EVENT_BUTTON:
-                    // printk("Button %u %s\n", event.number, event.value ? "pressed" : "released");
+                    printk("Button %u %s\n", event.number, event.value ? "pressed" : "released");
                     break;
                 case JS_EVENT_AXIS:
-                    get_axis_state(&event, axes);
-                    // printk("Axis %u at (%d, %d)\n", axis, axes[axis].x, axes[axis].y); 
+                    axis = get_axis_state(&event, axes);
+                    printk("Axis %u at (%d, %d)\n", axis, axes[axis].x, axes[axis].y); 
                     break;
                 default:
                     /* Ignore init events. */
@@ -203,10 +215,13 @@ void notmain() {
                     break;
             }
         }
-        if (total_wait > 10000) {
+        // Reset robot if connection dropped, no packet for 1 second
+        if (timer_get_usec() - last_packet_time > 1000000) {
+            drive(0, 0);
             clean_reboot();
         }
 
+        // use 4 for dpad
         int forward = -axes[0].y;
         int turn = axes[0].x;
         drive(forward + turn, forward - turn);

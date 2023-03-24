@@ -9,7 +9,7 @@ PROGS := read_joystick_from_user.c robot_main.c pwm-test.c 1-blink.c
 PROGS := test-synch.c
 
 
-COMMON_SRC := test-interrupts.c pwm.c encoders.c
+COMMON_SRC := pwm.c encoders.c #test-interrupts.c
 
 STAFF_OBJS := ../libpi/staff-objs/new-spi.o
 
