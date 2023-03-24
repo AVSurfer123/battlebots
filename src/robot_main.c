@@ -7,6 +7,7 @@
 #include "lock.h"
 #include "encoders.h"
 #include <limits.h>
+#include "mbox.h"
 
 #define LEFT_ENABLE 2
 #define LEFT_A 4
@@ -109,6 +110,8 @@ void notmain() {
     const unsigned oneMB = 1024 * 1024;
     kmalloc_init_set_start((void*)oneMB, oneMB);
     int_init();
+
+    output("Serial number: %u\n", serialno_trunc());
 
     // ================ CODE EXAMPLE ============== //
     // for (int i = 0; i < 30; i++) {
